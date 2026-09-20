@@ -1,4 +1,4 @@
-/** One in-flight Docker job. Stops two Python processes from stacking RAM on a laptop. */
+/** One in-flight Docker job. Stops two language runtimes from stacking RAM on a laptop. */
 import { trace } from "./trace.js";
 
 let tail: Promise<void> = Promise.resolve();

@@ -51,12 +51,6 @@ export function isolationHostConfig(
   };
 }
 
-export const JOB_ENV = [
-  "HOME=/tmp",
-  "PYTHONDONTWRITEBYTECODE=1",
-  "PYTHONUNBUFFERED=1",
-];
-
 export function isolationTraceDetail(limits: IsolationLimits): Record<string, unknown> {
   return {
     network: "none",
