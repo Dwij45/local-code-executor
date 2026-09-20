@@ -83,7 +83,7 @@ export async function handleExecute(opts: {
   if (!runtime) {
     return {
       status: 400,
-      body: { message: "language must be python, javascript, or c++ (A6)." }, // C++: "c++" not "cpp"
+      body: { message: "language must be python, javascript, c++, or java." }, // Java: A7; C++ id is "c++" not "cpp"
     };
   }
 
@@ -105,7 +105,7 @@ export async function handleExecute(opts: {
   const compileTimeoutMs = Math.min(
     Math.max(1, parsed.compile_timeout ?? opts.maxCompileTimeoutMs),
     opts.maxCompileTimeoutMs,
-  ); // C++: clamp g++ time so a compile bomb cannot run forever
+  ); // C++ / Java: clamp compiler time so a compile bomb cannot run forever
 
   try {
     const result = await withJobLock(jobId, () =>
@@ -133,7 +133,7 @@ export async function handleExecute(opts: {
       version,
       run: result.run,
     };
-    if (result.compile) response.compile = result.compile; // C++: omit this key for Python/JS
+    if (result.compile) response.compile = result.compile; // C++ / Java: omit this key for Python/JS
     return { status: 200, body: response };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Execute failed.";

@@ -21,8 +21,8 @@ const token = requiredEnv("RUNNER_TOKEN");
 const host = process.env.HOST?.trim() || "127.0.0.1";
 const port = numberEnv("PORT", 2000);
 const maxSourceChars = numberEnv("MAX_SOURCE_CHARS", 10_000);
-const maxRunTimeoutMs = numberEnv("MAX_RUN_TIMEOUT_MS", 3_000);
-const maxCompileTimeoutMs = numberEnv("MAX_COMPILE_TIMEOUT_MS", 10_000); // C++: g++ cap
+const maxRunTimeoutMs = numberEnv("MAX_RUN_TIMEOUT_MS", 10_000); // Java: cold JVM often needs more than 3s
+const maxCompileTimeoutMs = numberEnv("MAX_COMPILE_TIMEOUT_MS", 10_000); // C++ / Java: g++ / javac cap
 const maxStdoutBytes = numberEnv("MAX_STDOUT_BYTES", 65_536);
 
 const app = new Hono();
@@ -60,7 +60,7 @@ function listenPreferPort(preferred: number, extraTries = 20): void {
   const tryPort = (candidate: number): void => {
     const server = serve({ fetch: app.fetch, hostname: host, port: candidate }, (info) => {
       console.log(`algora-runner listening on http://${info.address}:${info.port}`);
-      console.log("POST /api/v2/execute (python, javascript, c++, isolation). Bind is loopback.");
+      console.log("POST /api/v2/execute (python, javascript, c++, java, isolation). Bind is loopback.");
     });
     server.once("error", (err: NodeJS.ErrnoException) => {
       if (err.code === "EADDRINUSE" && candidate < preferred + extraTries) {
