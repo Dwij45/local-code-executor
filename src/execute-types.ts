@@ -9,7 +9,7 @@ export type ExecuteRequest = {
   version?: string;
   files: SourceFile[];
   stdin?: string;
-  compile_timeout?: number;
+  compile_timeout?: number; // C++: milliseconds for g++
   run_timeout?: number;
 };
 
@@ -25,5 +25,6 @@ export type StreamResult = {
 export type ExecuteResponse = {
   language: string;
   version: string;
+  compile?: StreamResult; // C++: Algora maps compile.code !== 0 to compilation error
   run: StreamResult;
 };
