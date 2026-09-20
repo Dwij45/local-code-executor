@@ -1,4 +1,4 @@
-export type RuntimeId = "python" | "javascript" | "c++"; // "c++" is what Algora sends
+export type RuntimeId = "python" | "javascript" | "c++" | "java"; // "c++" is what Algora sends
 
 export type RuntimeSpec = {
   id: RuntimeId;
@@ -9,9 +9,9 @@ export type RuntimeSpec = {
   /** Used when there is no compile step (Python / JS). */
   shellCmd: string;
   extraEnv: string[];
-  compileCmd?: string; // C++: g++ step (Python/JS omit this)
-  runCmd?: string; // C++: run the binary after a successful compile
-  memoryMb?: number; // C++: extra RAM so g++ does not get killed
+  compileCmd?: string; // C++ / Java: compiler step (Python/JS omit this)
+  runCmd?: string; // C++ / Java: run after a successful compile
+  memoryMb?: number; // C++ / Java: extra RAM so g++ / javac+JVM are not killed
 };
 
 const PYTHON: RuntimeSpec = {
@@ -45,14 +45,28 @@ const CPP: RuntimeSpec = {
   memoryMb: 256,
 };
 
+// for Java: javac cannot write .class into /work (read-only), so -d /tmp then java -cp /tmp
+const JAVA: RuntimeSpec = {
+  id: "java",
+  defaultVersion: "21.0.0",
+  defaultImage: process.env.JAVA_IMAGE?.trim() || "eclipse-temurin:21-jdk",
+  fileName: "Main.java",
+  shellCmd: "",
+  compileCmd: "javac -d /tmp /work/Main.java",
+  runCmd: "java -cp /tmp Main < /work/stdin.txt",
+  extraEnv: ["HOME=/tmp", "JAVA_TOOL_OPTIONS=-Djava.io.tmpdir=/tmp"],
+  memoryMb: 384,
+};
+
 const BY_ID: Record<RuntimeId, RuntimeSpec> = {
   python: PYTHON,
   javascript: JAVASCRIPT,
   "c++": CPP,
+  java: JAVA,
 };
 
 export function isRuntimeId(value: string): value is RuntimeId {
-  return value === "python" || value === "javascript" || value === "c++";
+  return value === "python" || value === "javascript" || value === "c++" || value === "java";
 }
 
 export function runtimeFor(language: string): RuntimeSpec | null {
@@ -61,4 +75,4 @@ export function runtimeFor(language: string): RuntimeSpec | null {
   return BY_ID[language];
 }
 
-export const ENABLED_LANGUAGES: RuntimeId[] = ["python", "javascript", "c++"]; // C++: A6
+export const ENABLED_LANGUAGES: RuntimeId[] = ["python", "javascript", "c++", "java"]; // Java: A7
