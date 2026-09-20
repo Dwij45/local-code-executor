@@ -1,7 +1,7 @@
 /**
  * Shared secret for POST /api/v2/execute.
  * You invent RUNNER_TOKEN; Algora must send the same string as Authorization
- * (its env name there is PISTON_API_KEY — a leftover from the old client).
+ * Same value as Algora EXECUTOR_TOKEN (Authorization header).
  */
 export function assertBearer(headerValue: string | undefined, expected: string): boolean {
   if (!expected) return false;
