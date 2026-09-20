@@ -38,7 +38,7 @@ function demuxDockerLogs(raw: Buffer): { stdout: string; stderr: string } {
 }
 
 function emptyRun(): StreamResult {
-  // C++: compile failed — Algora still expects a run object
+  // C++ / Java: compile failed — Algora still expects a run object
   return { stdout: "", stderr: "", output: "", code: 1, signal: null };
 }
 
@@ -63,12 +63,12 @@ function toStreamResult(
 function limitsFor(runtime: RuntimeSpec): IsolationLimits {
   const base = isolationLimitsFromEnv();
   if (!runtime.memoryMb) return base;
-  // C++: g++ needs more than the 128 MB Python/JS cap
+  // C++ / Java: g++ and javac+JVM need more than the 128 MB Python/JS cap
   const memoryBytes = Math.max(32, runtime.memoryMb) * 1024 * 1024;
   return { ...base, memoryBytes };
 }
 
-/** C++: capture stdout/stderr from g++ or /tmp/main inside the already-started container. */
+/** C++ / Java: capture stdout/stderr from g++/javac or /tmp/main / java inside the already-started container. */
 async function readExecOutput(
   exec: Docker.Exec,
   timeoutMs: number,
@@ -106,18 +106,18 @@ export type IsolatedJobInput = {
   source: string;
   stdin: string;
   runTimeoutMs: number;
-  compileTimeoutMs: number; // C++: cap g++ time separately from the program
+  compileTimeoutMs: number; // C++ / Java: cap g++ / javac time separately from the program
   maxStdoutBytes: number;
 };
 
 export type IsolatedJobResult = {
-  compile?: StreamResult; // C++: present after g++; omitted for Python/JS
+  compile?: StreamResult; // C++ / Java: present after compile; omitted for Python/JS
   run: StreamResult;
 };
 
 /**
  * Throwaway container: write source + stdin, compile if needed, run, delete.
- * Compiled binaries go to /tmp (writable). /work is read-only.
+ * Compiled output goes to /tmp (writable). /work is read-only. C++ writes /tmp/main; Java writes /tmp/*.class.
  */
 export async function runIsolatedJob(input: IsolatedJobInput): Promise<IsolatedJobResult> {
   const { jobId, runtime } = input;
@@ -127,7 +127,7 @@ export async function runIsolatedJob(input: IsolatedJobInput): Promise<IsolatedJ
   const stdinPath = path.join(work, "stdin.txt");
   const bind = `${hostBindPath(work)}:/work:ro`;
   const keepWork = process.env.RUNNER_KEEP_WORK === "1";
-  const compiled = Boolean(runtime.compileCmd && runtime.runCmd); // C++: compile-then-run
+  const compiled = Boolean(runtime.compileCmd && runtime.runCmd); // C++ / Java: compile-then-run
   let container: Docker.Container | undefined;
 
   trace(jobId, "runIsolatedJob", {
@@ -155,7 +155,7 @@ export async function runIsolatedJob(input: IsolatedJobInput): Promise<IsolatedJ
     });
 
     const limits = limitsFor(runtime);
-    const cmd = compiled ? ["sleep", "3600"] : ["/bin/sh", "-c", runtime.shellCmd]; // C++: keep the box alive for g++ then /tmp/main
+    const cmd = compiled ? ["sleep", "3600"] : ["/bin/sh", "-c", runtime.shellCmd]; // C++ / Java: keep the box alive for compile then run
     trace(jobId, "docker createContainer", {
       bind,
       cmd: compiled ? `sleep; ${runtime.compileCmd}; ${runtime.runCmd}` : runtime.shellCmd,
@@ -173,7 +173,7 @@ export async function runIsolatedJob(input: IsolatedJobInput): Promise<IsolatedJ
     trace(jobId, "docker start", { containerId });
     await container.start();
 
-    // C++: g++ first; if that fails, do not run. Then run /tmp/main.
+    // C++ / Java: compile first; if that fails, do not run. Then run /tmp/main or java -cp /tmp Main.
     if (compiled && runtime.compileCmd && runtime.runCmd) {
       const compileExec = await container.exec({
         Cmd: ["/bin/sh", "-c", runtime.compileCmd],
