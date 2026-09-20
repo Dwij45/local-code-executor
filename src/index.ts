@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { handleExecute } from "./execute-handler.js";
+import { newJobId, trace } from "./trace.js";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -25,16 +26,20 @@ const maxStdoutBytes = numberEnv("MAX_STDOUT_BYTES", 65_536);
 
 const app = new Hono();
 
-app.get("/health", (c) => c.json({ ok: true, languages: ["python"] }));
+app.get("/health", (c) => c.json({ ok: true, languages: ["python"], isolation: true }));
 
 app.post("/api/v2/execute", async (c) => {
+  const jobId = newJobId();
+  trace(jobId, "index.ts POST /api/v2/execute");
   let json: unknown;
   try {
     json = await c.req.json();
   } catch {
+    trace(jobId, "invalid JSON body");
     return c.json({ message: "Invalid JSON body." }, 400);
   }
   const result = await handleExecute({
+    jobId,
     authorization: c.req.header("Authorization"),
     body: json,
     token,
@@ -43,10 +48,11 @@ app.post("/api/v2/execute", async (c) => {
     maxRunTimeoutMs,
     maxStdoutBytes,
   });
+  trace(jobId, "index.ts response", { status: result.status });
   return c.json(result.body, result.status as 200 | 400 | 401 | 502);
 });
 
 serve({ fetch: app.fetch, hostname: host, port }, (info) => {
   console.log(`algora-runner listening on http://${info.address}:${info.port}`);
-  console.log("POST /api/v2/execute (python only). Bind is loopback — not the public internet.");
+  console.log("POST /api/v2/execute (python only, A4 isolation on jobs). Bind is loopback.");
 });
