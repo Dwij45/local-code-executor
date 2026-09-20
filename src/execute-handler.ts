@@ -4,7 +4,7 @@ import { runIsolatedJob } from "./container-job.js";
 import { withJobLock } from "./job-lock.js";
 import { runtimeFor } from "./runtimes.js";
 import { preview, trace } from "./trace.js";
-import { algoraRunVerdict } from "./verdict.js";
+import { algoraJobVerdict } from "./verdict.js";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (typeof value === "object" && value !== null) return value as Record<string, unknown>;
@@ -52,6 +52,7 @@ export async function handleExecute(opts: {
   token: string;
   maxSourceChars: number;
   maxRunTimeoutMs: number;
+  maxCompileTimeoutMs: number;
   maxStdoutBytes: number;
 }): Promise<{ status: number; body: ExecuteResponse | { message: string } }> {
   const { jobId } = opts;
@@ -82,7 +83,7 @@ export async function handleExecute(opts: {
   if (!runtime) {
     return {
       status: 400,
-      body: { message: "language must be python or javascript (A5)." },
+      body: { message: "language must be python, javascript, or c++ (A6)." }, // C++: "c++" not "cpp"
     };
   }
 
@@ -101,31 +102,38 @@ export async function handleExecute(opts: {
     Math.max(1, parsed.run_timeout ?? opts.maxRunTimeoutMs),
     opts.maxRunTimeoutMs,
   );
+  const compileTimeoutMs = Math.min(
+    Math.max(1, parsed.compile_timeout ?? opts.maxCompileTimeoutMs),
+    opts.maxCompileTimeoutMs,
+  ); // C++: clamp g++ time so a compile bomb cannot run forever
 
   try {
-    const run = await withJobLock(jobId, () =>
+    const result = await withJobLock(jobId, () =>
       runIsolatedJob({
         jobId,
         runtime,
         source,
         stdin: parsed.stdin ?? "",
         runTimeoutMs,
+        compileTimeoutMs,
         maxStdoutBytes: opts.maxStdoutBytes,
       }),
     );
     trace(jobId, "response", {
-      code: run.code,
-      signal: run.signal,
-      stdoutChars: run.stdout.length,
-      stderrChars: run.stderr.length,
-      stdoutPreview: preview(run.stdout),
-      algoraVerdict: algoraRunVerdict(run),
+      code: result.run.code,
+      signal: result.run.signal,
+      compileCode: result.compile?.code,
+      stdoutChars: result.run.stdout.length,
+      stderrChars: result.run.stderr.length,
+      stdoutPreview: preview(result.run.stdout),
+      algoraVerdict: algoraJobVerdict(result.run, result.compile),
     });
     const response: ExecuteResponse = {
       language: runtime.id,
       version,
-      run,
+      run: result.run,
     };
+    if (result.compile) response.compile = result.compile; // C++: omit this key for Python/JS
     return { status: 200, body: response };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Execute failed.";
