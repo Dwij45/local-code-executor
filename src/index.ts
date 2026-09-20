@@ -19,14 +19,15 @@ function numberEnv(name: string, fallback: number): number {
 const token = requiredEnv("RUNNER_TOKEN");
 const host = process.env.HOST?.trim() || "127.0.0.1";
 const port = numberEnv("PORT", 2000);
-const pythonImage = process.env.PYTHON_IMAGE?.trim() || "python:3.12-slim";
 const maxSourceChars = numberEnv("MAX_SOURCE_CHARS", 10_000);
 const maxRunTimeoutMs = numberEnv("MAX_RUN_TIMEOUT_MS", 3_000);
 const maxStdoutBytes = numberEnv("MAX_STDOUT_BYTES", 65_536);
 
 const app = new Hono();
 
-app.get("/health", (c) => c.json({ ok: true, languages: ["python"], isolation: true }));
+app.get("/health", (c) =>
+  c.json({ ok: true, languages: ["python", "javascript"], isolation: true }),
+);
 
 app.post("/api/v2/execute", async (c) => {
   const jobId = newJobId();
@@ -43,7 +44,6 @@ app.post("/api/v2/execute", async (c) => {
     authorization: c.req.header("Authorization"),
     body: json,
     token,
-    pythonImage,
     maxSourceChars,
     maxRunTimeoutMs,
     maxStdoutBytes,
@@ -54,5 +54,5 @@ app.post("/api/v2/execute", async (c) => {
 
 serve({ fetch: app.fetch, hostname: host, port }, (info) => {
   console.log(`algora-runner listening on http://${info.address}:${info.port}`);
-  console.log("POST /api/v2/execute (python only, A4 isolation on jobs). Bind is loopback.");
+  console.log("POST /api/v2/execute (python + javascript, isolation on jobs). Bind is loopback.");
 });

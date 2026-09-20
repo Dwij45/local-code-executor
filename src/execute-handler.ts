@@ -1,7 +1,8 @@
 import { assertBearer } from "./auth.js";
 import type { ExecuteRequest, ExecuteResponse } from "./execute-types.js";
+import { runIsolatedJob } from "./container-job.js";
 import { withJobLock } from "./job-lock.js";
-import { runPythonJob } from "./python-job.js";
+import { runtimeFor } from "./runtimes.js";
 import { preview, trace } from "./trace.js";
 import { algoraRunVerdict } from "./verdict.js";
 
@@ -49,7 +50,6 @@ export async function handleExecute(opts: {
   authorization: string | undefined;
   body: unknown;
   token: string;
-  pythonImage: string;
   maxSourceChars: number;
   maxRunTimeoutMs: number;
   maxStdoutBytes: number;
@@ -78,13 +78,16 @@ export async function handleExecute(opts: {
     stdinPreview: preview(parsed.stdin ?? ""),
   });
 
-  if (parsed.language !== "python") {
-    return { status: 400, body: { message: "A2: only language=python is enabled." } };
+  const runtime = runtimeFor(parsed.language);
+  if (!runtime) {
+    return {
+      status: 400,
+      body: { message: "language must be python or javascript (A5)." },
+    };
   }
 
-  // Algora sends version "*" meaning "any installed runtime".
   const version =
-    !parsed.version || parsed.version === "*" ? "3.12.0" : parsed.version;
+    !parsed.version || parsed.version === "*" ? runtime.defaultVersion : parsed.version;
 
   const source = parsed.files[0]?.content ?? "";
   if (source.length > opts.maxSourceChars) {
@@ -101,12 +104,12 @@ export async function handleExecute(opts: {
 
   try {
     const run = await withJobLock(jobId, () =>
-      runPythonJob({
+      runIsolatedJob({
         jobId,
+        runtime,
         source,
         stdin: parsed.stdin ?? "",
         runTimeoutMs,
-        image: opts.pythonImage,
         maxStdoutBytes: opts.maxStdoutBytes,
       }),
     );
@@ -119,7 +122,7 @@ export async function handleExecute(opts: {
       algoraVerdict: algoraRunVerdict(run),
     });
     const response: ExecuteResponse = {
-      language: "python",
+      language: runtime.id,
       version,
       run,
     };
