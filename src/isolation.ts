@@ -17,7 +17,7 @@ export function isolationLimitsFromEnv(): IsolationLimits {
     memoryBytes: Math.max(32, memoryMb) * 1024 * 1024,
     nanoCpus: 1_000_000_000,
     pidsLimit: Number(process.env.ISOLATION_PIDS_LIMIT ?? 64),
-    tmpfsSize: process.env.ISOLATION_TMPFS_SIZE ?? "32m", // C++: room for /tmp/main
+    tmpfsSize: process.env.ISOLATION_TMPFS_SIZE ?? "32m", // C++ / Java: room for /tmp/main and .class files
     logMaxSize: process.env.ISOLATION_LOG_MAX_SIZE ?? "64k",
   };
 }
@@ -43,7 +43,7 @@ export function isolationHostConfig(
     ReadonlyRootfs: true,
     CapDrop: ["ALL"],
     SecurityOpt: ["no-new-privileges:true"],
-    // C++: /tmp must be writable and executable so g++ can emit /tmp/main and we can run it
+    // C++ / Java: /tmp must be writable (and executable for C++) so compilers can emit /tmp/main or .class
     Tmpfs: { "/tmp": `rw,nosuid,nodev,exec,size=${limits.tmpfsSize},mode=1777` },
     LogConfig: {
       Type: "json-file",
