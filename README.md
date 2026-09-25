@@ -117,15 +117,3 @@ Runner must already be listening. Checks probe `PORT`, then `2000` / `2001`.
 | `npm run check:a5` | JavaScript + Python still work |
 | `npm run check:a6` | C++ compile/run |
 | `npm run check:a7` | Java `javac` then `java` |
-
-## Docs
-
-| Doc | Topic |
-|-----|--------|
-| [docs/HTTP_EXECUTE.md](docs/HTTP_EXECUTE.md) | Token and who may call execute |
-| [docs/A3_CONTRACT.md](docs/A3_CONTRACT.md) | JSON vs Algora; Docker Python, not PC Python |
-| [docs/PYTHON_JOB.md](docs/PYTHON_JOB.md) / [JAVASCRIPT.md](docs/JAVASCRIPT.md) / [CPP.md](docs/CPP.md) / [JAVA.md](docs/JAVA.md) | Per-language jobs |
-| [docs/TRACE.md](docs/TRACE.md) | How a JSON string becomes a file on disk |
-| [docs/FILES.md](docs/FILES.md) | Full `src/` map |
-| [docs/plans/README.md](docs/plans/README.md) | Phase A A0–A8 and Ampere plan |
-| [docs/from-algora/CODE_EXECUTION.md](docs/from-algora/CODE_EXECUTION.md) | Algora client step log (copy) |
